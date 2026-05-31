@@ -1,33 +1,38 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { createServer } = require('http');
-const mongoose = require('mongoose');
-const { initWebSocket } = require('./ws/handler');
+const express    = require('express');
+const http       = require('http');
+const cors       = require('cors');
+const { Server } = require('socket.io');
+const { pool }   = require('./db/pool');
 const locationRoutes = require('./routes/locations');
+const geofenceRoutes = require('./routes/geofences');
+const alertRoutes    = require('./routes/alerts');
+const ingestRoutes   = require('./routes/ingest');
+const { initSocket } = require('./socket/handler');
 
-const app = express();
-const httpServer = createServer(app);
+const app    = express();
+const server = http.createServer(app);
+const io     = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
-app.use('/api/locations', locationRoutes);
+app.use((req, _res, next) => { req.io = io; next(); });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', ts: new Date() });
+  } catch (e) {
+    res.status(500).json({ status: 'error', db: e.message });
+  }
+});
+
+app.use('/api/locations', locationRoutes);
+app.use('/api/geofences', geofenceRoutes);
+app.use('/api/alerts',    alertRoutes);
+app.use('/api/ingest',    ingestRoutes);
+
+initSocket(io);
 
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/gps_tracker';
-
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log('[DB] MongoDB connected');
-    initWebSocket(httpServer);
-    httpServer.listen(PORT, () => {
-      console.log(`[SERVER] HTTP + WebSocket listening on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('[DB] Connection error:', err.message);
-    process.exit(1);
-  });
+server.listen(PORT, () => console.log(`[SERVER] Listening on :${PORT}`));
