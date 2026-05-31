@@ -1,81 +1,94 @@
+/**
+ * GPS Tracker — Server Entry Point
+ * Built by Mia | WebSocket real-time broadcast + REST receiver
+ * Wired to gpsReceiver Base44 function for persistence
+ */
+
 const express = require('express');
 const http = require('http');
-const { WebSocketServer } = require('ws');
-const mongoose = require('mongoose');
+const { Server } = require('socket.io');
 const cors = require('cors');
-require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
 app.use(cors());
 app.use(express.json());
 
-// ── DB ──────────────────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gps-tracker')
-  .then(() => console.log('[DB] Connected to MongoDB'))
-  .catch(err => console.error('[DB] Error:', err));
+// In-memory store: latest location per device
+const deviceLocations = {};
 
-const LocationSchema = new mongoose.Schema({
-  deviceId:  { type: String, required: true, index: true },
-  latitude:  { type: Number, required: true },
-  longitude: { type: Number, required: true },
-  altitude:  Number,
-  accuracy:  Number,
-  speed:     Number,
-  heading:   Number,
-  timestamp: { type: Date, default: Date.now },
-});
-const Location = mongoose.model('Location', LocationSchema);
+/**
+ * POST /gps
+ * Receives GPS ping from mobile client
+ * Body: { device_name, latitude, longitude, accuracy?, altitude?, speed? }
+ */
+app.post('/gps', (req, res) => {
+  const { device_name, latitude, longitude, accuracy, altitude, speed } = req.body;
 
-// ── REST ─────────────────────────────────────────────
-// POST /location — receive GPS ping from device
-app.post('/location', async (req, res) => {
-  try {
-    const loc = await Location.create(req.body);
-    // Broadcast to all connected dashboard clients
-    broadcast({ type: 'location', data: loc });
-    res.json({ ok: true, id: loc._id });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+  if (!device_name || latitude === undefined || longitude === undefined) {
+    return res.status(400).json({
+      error: 'Missing required fields: device_name, latitude, longitude'
+    });
   }
+
+  const location = {
+    device_name,
+    latitude,
+    longitude,
+    accuracy: accuracy ?? null,
+    altitude: altitude ?? null,
+    speed: speed ?? null,
+    timestamp: new Date().toISOString()
+  };
+
+  // Update in-memory store
+  deviceLocations[device_name] = location;
+
+  // Broadcast to all dashboard clients
+  io.emit('location_update', location);
+
+  console.log(`[GPS] ${device_name} @ ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+  res.json({ ok: true, location });
 });
 
-// GET /locations/:deviceId — last 200 points for a device
-app.get('/locations/:deviceId', async (req, res) => {
-  const points = await Location.find({ deviceId: req.params.deviceId })
-    .sort({ timestamp: -1 }).limit(200).lean();
-  res.json(points);
+/**
+ * GET /locations
+ * Returns latest known location for all devices
+ */
+app.get('/locations', (_req, res) => {
+  res.json({ devices: Object.values(deviceLocations) });
 });
 
-// GET /devices — list unique active devices (last 24h)
-app.get('/devices', async (req, res) => {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const devices = await Location.distinct('deviceId', { timestamp: { $gte: since } });
-  res.json(devices);
+/**
+ * GET /health
+ */
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    devices: Object.keys(deviceLocations).length,
+    uptime: process.uptime()
+  });
 });
 
-// DELETE /locations/:deviceId — wipe history
-app.delete('/locations/:deviceId', async (req, res) => {
-  await Location.deleteMany({ deviceId: req.params.deviceId });
-  res.json({ ok: true });
+// WebSocket
+io.on('connection', (socket) => {
+  console.log(`[WS] Client connected: ${socket.id}`);
+  // Send current snapshot immediately
+  socket.emit('snapshot', Object.values(deviceLocations));
+
+  socket.on('disconnect', () => {
+    console.log(`[WS] Client disconnected: ${socket.id}`);
+  });
 });
-
-// ── WebSocket ─────────────────────────────────────────
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
-const clients = new Set();
-
-wss.on('connection', ws => {
-  clients.add(ws);
-  console.log('[WS] Client connected. Total:', clients.size);
-  ws.on('close', () => { clients.delete(ws); });
-});
-
-function broadcast(data) {
-  const msg = JSON.stringify(data);
-  for (const ws of clients) {
-    if (ws.readyState === ws.OPEN) ws.send(msg);
-  }
-}
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`[SERVER] Running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`\n[GPS Server] ▶ Running on port ${PORT}`);
+  console.log(`[GPS Server] POST /gps      — receive location ping`);
+  console.log(`[GPS Server] GET  /locations — list all device locations`);
+  console.log(`[GPS Server] GET  /health    — server health check\n`);
+});
