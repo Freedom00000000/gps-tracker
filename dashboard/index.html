@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPS Tracker Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a1a; color: #eee; font-family: 'Courier New', monospace; display: flex; height: 100vh; }
+    #sidebar { width: 280px; background: #0d0d20; padding: 16px; overflow-y: auto; border-right: 1px solid #1a1a3a; }
+    h1 { color: #00e5ff; font-size: 18px; margin-bottom: 16px; }
+    #map { flex: 1; }
+    .device-btn { display: block; width: 100%; text-align: left; background: #111; border: 1px solid #222;
+      color: #aaa; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer;
+      font-family: inherit; font-size: 12px; transition: border-color 0.2s; }
+    .device-btn.active { border-color: #00e5ff; color: #00e5ff; }
+    #status { font-size: 11px; color: #444; margin-bottom: 12px; }
+    #coords { font-size: 11px; color: #666; line-height: 1.8; margin-top: 12px;
+              background: #050510; border-radius: 6px; padding: 10px; }
+    #coords span { color: #00e5ff; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+           background: #333; margin-right: 6px; transition: background 0.3s; }
+    .dot.live { background: #00e5ff; box-shadow: 0 0 6px #00e5ff; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>📡 GPS Dashboard</h1>
+    <div id="status"><span class="dot" id="wsDot"></span>Connecting...</div>
+    <div id="deviceList"></div>
+    <div id="coords">Select a device to view coordinates.</div>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const SERVER = window.location.hostname === 'localhost' ? 'localhost:3001' : window.location.host;
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      className: 'dark-tiles'
+    }).addTo(map);
+
+    const markers = {};
+    const trails  = {};
+    let activeDevice = null;
+
+    function renderDeviceList(devices) {
+      const list = document.getElementById('deviceList');
+      list.innerHTML = '';
+      devices.forEach(id => {
+        const btn = document.createElement('button');
+        btn.className = 'device-btn' + (id === activeDevice ? ' active' : '');
+        btn.textContent = '📱 ' + id;
+        btn.onclick = () => selectDevice(id);
+        list.appendChild(btn);
+      });
+    }
+
+    async function loadDevices() {
+      const res = await fetch(`http://${SERVER}/devices`);
+      const devices = await res.json();
+      renderDeviceList(devices);
+      if (devices.length && !activeDevice) selectDevice(devices[0]);
+    }
+
+    async function selectDevice(id) {
+      activeDevice = id;
+      document.querySelectorAll('.device-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(id)));
+      const res = await fetch(`http://${SERVER}/locations/${id}`);
+      const points = await res.json();
+      if (!points.length) return;
+
+      if (trails[id]) map.removeLayer(trails[id]);
+      const latlngs = points.map(p => [p.latitude, p.longitude]);
+      trails[id] = L.polyline(latlngs, { color: '#00e5ff', weight: 2, opacity: 0.6 }).addTo(map);
+
+      const last = points[0];
+      placeMarker(id, last);
+      map.setView([last.latitude, last.longitude], 15);
+      updateCoords(last);
+    }
+
+    function placeMarker(id, loc) {
+      const icon = L.divIcon({ className: '', html:
+        `<div style="width:14px;height:14px;background:#00e5ff;border-radius:50%;
+         border:2px solid #fff;box-shadow:0 0 8px #00e5ff"></div>`, iconSize:[14,14] });
+      if (markers[id]) map.removeLayer(markers[id]);
+      markers[id] = L.marker([loc.latitude, loc.longitude], { icon })
+        .bindPopup(`<b>${id}</b><br>${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`)
+        .addTo(map);
+    }
+
+    function updateCoords(loc) {
+      document.getElementById('coords').innerHTML =
+        `Lat:&nbsp;&nbsp;&nbsp;<span>${loc.latitude.toFixed(6)}</span><br>` +
+        `Lon:&nbsp;&nbsp;&nbsp;<span>${loc.longitude.toFixed(6)}</span><br>` +
+        `Alt:&nbsp;&nbsp;&nbsp;<span>${(loc.altitude || 0).toFixed(1)} m</span><br>` +
+        `Speed:&nbsp;<span>${(loc.speed || 0).toFixed(1)} m/s</span><br>` +
+        `Updated: <span>${new Date(loc.timestamp).toLocaleTimeString()}</span>`;
+    }
+
+    // WebSocket live updates
+    function connect() {
+      const ws = new WebSocket(`ws://${SERVER}`);
+      const dot = document.getElementById('wsDot');
+      const status = document.getElementById('status');
+      ws.onopen = () => { dot.className = 'dot live'; status.innerHTML = '<span class="dot live"></span>Live'; };
+      ws.onclose = () => { dot.className = 'dot'; status.innerHTML = '<span class="dot"></span>Reconnecting...'; setTimeout(connect, 3000); };
+      ws.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'location') {
+          const loc = msg.data;
+          loadDevices();
+          if (loc.deviceId === activeDevice) {
+            placeMarker(loc.deviceId, loc);
+            updateCoords(loc);
+            if (trails[loc.deviceId]) {
+              trails[loc.deviceId].addLatLng([loc.latitude, loc.longitude]);
+            }
+            map.panTo([loc.latitude, loc.longitude]);
+          }
+        }
+      };
+    }
+
+    loadDevices();
+    connect();
+    setInterval(loadDevices, 30000);
+  </script>
+</body>
+</html>
