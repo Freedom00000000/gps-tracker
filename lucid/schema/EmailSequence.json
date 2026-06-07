@@ -1,0 +1,54 @@
+{
+  "name": "EmailSequence",
+  "description": "Lucid Commerce — automated email sequence record",
+  "properties": {
+    "customer_ref": {
+      "type": "string",
+      "description": "Reference to CustomerProfile entity"
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["order_placed", "order_shipped", "order_delivered", "reorder_reminder", "welcome", "win_back", "abandoned_cart"],
+      "description": "Event that triggers this sequence"
+    },
+    "template": {
+      "type": "string",
+      "description": "Email template identifier or slug"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "delay_hours": {
+      "type": "number",
+      "description": "Hours after trigger event to send"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["scheduled", "sent", "failed", "cancelled", "opened", "clicked"],
+      "default": "scheduled"
+    },
+    "order_ref": {
+      "type": "string",
+      "description": "Optional reference to Order entity"
+    },
+    "scheduled_at": {
+      "type": "string",
+      "description": "ISO timestamp when email is scheduled to send"
+    },
+    "sent_at": {
+      "type": "string",
+      "description": "ISO timestamp when email was actually sent"
+    },
+    "opened_at": {
+      "type": "string",
+      "description": "ISO timestamp when email was opened"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional context — UTM params, personalization tokens, etc."
+    }
+  },
+  "required": ["customer_ref", "trigger", "template"],
+  "indexes": ["customer_ref", "trigger", "status", "scheduled_at", "order_ref"]
+}
