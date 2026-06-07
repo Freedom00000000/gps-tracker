@@ -1,0 +1,19 @@
+{
+  "name": "Order",
+  "description": "Lucid Commerce — customer order record",
+  "properties": {
+    "sku": { "type": "string", "description": "Product SKU ordered" },
+    "quantity": { "type": "number", "description": "Units ordered" },
+    "customer_ref": { "type": "string", "description": "Reference to CustomerProfile entity" },
+    "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled", "refunded"], "default": "pending" },
+    "total_amount": { "type": "number", "description": "Order total in base currency" },
+    "currency": { "type": "string", "default": "DKK" },
+    "shipping_address": { "type": "object", "description": "Delivery address object" },
+    "placed_at": { "type": "string", "description": "ISO timestamp when order was placed" },
+    "shipped_at": { "type": "string", "description": "ISO timestamp when order was shipped" },
+    "delivered_at": { "type": "string", "description": "ISO timestamp when order was delivered" },
+    "notes": { "type": "string", "description": "Internal order notes" }
+  },
+  "required": ["sku", "quantity", "customer_ref"],
+  "indexes": ["customer_ref", "status", "sku", "placed_at"]
+}
