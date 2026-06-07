@@ -1,0 +1,21 @@
+{
+  "name": "InventoryRecord",
+  "description": "Lucid Commerce — SKU-level stock tracking",
+  "properties": {
+    "sku": { "type": "string", "description": "Unique product SKU" },
+    "product_name": { "type": "string", "description": "Human-readable product name" },
+    "stock_level": { "type": "number", "description": "Current units in stock" },
+    "reorder_threshold": { "type": "number", "description": "Stock level that triggers reorder alert" },
+    "reorder_quantity": { "type": "number", "description": "Units to reorder when threshold hit" },
+    "supplier": { "type": "string", "description": "Supplier name or ID" },
+    "supplier_sku": { "type": "string", "description": "Supplier's own SKU reference" },
+    "unit_cost": { "type": "number", "description": "Cost per unit from supplier" },
+    "unit_price": { "type": "number", "description": "Customer-facing price per unit" },
+    "currency": { "type": "string", "default": "DKK" },
+    "location": { "type": "string", "description": "Warehouse or storage location" },
+    "last_restocked_at": { "type": "string", "description": "ISO timestamp of last restock" },
+    "status": { "type": "string", "enum": ["active", "discontinued", "out_of_stock", "incoming"], "default": "active" }
+  },
+  "required": ["sku", "product_name", "stock_level"],
+  "indexes": ["sku", "status", "stock_level", "supplier"]
+}
