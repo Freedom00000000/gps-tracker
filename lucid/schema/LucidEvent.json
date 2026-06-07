@@ -1,0 +1,33 @@
+{
+  "name": "LucidEvent",
+  "description": "Lucid event stream — thin append-only log of every meaningful interaction. Powers Customer Intelligence layer in Phase 2.",
+  "properties": {
+    "entity_type": {
+      "type": "string",
+      "enum": ["Order", "InventoryRecord", "EmailSequence", "CustomerProfile", "GpsLocation"],
+      "description": "Type of entity this event relates to"
+    },
+    "entity_id": { "type": "string", "description": "ID of the entity that triggered the event" },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "order_placed", "order_confirmed", "order_shipped", "order_delivered",
+        "order_cancelled", "order_refunded", "sku_reordered", "stock_low",
+        "stock_replenished", "email_sent", "email_opened", "email_clicked",
+        "email_bounced", "gps_delivery_confirmed", "customer_created",
+        "customer_churned", "sequence_triggered"
+      ]
+    },
+    "customer_ref": { "type": "string", "description": "Customer reference for cross-entity intelligence joins" },
+    "sku": { "type": "string", "description": "SKU reference if event is product-related" },
+    "metadata": { "type": "object", "description": "Freeform context payload" },
+    "occurred_at": { "type": "string", "description": "ISO timestamp of when the event actually occurred" },
+    "source": {
+      "type": "string",
+      "enum": ["jarvis", "mia", "system", "webhook", "customer"],
+      "description": "What originated this event"
+    }
+  },
+  "required": ["entity_type", "entity_id", "event_type"],
+  "indexes": ["entity_type", "entity_id", "event_type", "customer_ref", "sku", "occurred_at", "source"]
+}
