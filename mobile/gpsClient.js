@@ -1,5 +1,5 @@
 /**
- * GPS Tracker — Mobile Client
+ * GPS Tracker â Mobile Client
  * Polls device GPS and sends location pings to the server
  * Works in React Native or plain browser context
  * Built by Mia
