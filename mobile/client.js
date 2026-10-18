@@ -1,6 +1,15 @@
 (() => {
   const $ = selector => document.querySelector(selector);
   const status = $('#share-status');
+  // The fragment stays in the browser and is never sent in HTTP requests.
+  // Remove it immediately after importing the explicit setup values.
+  const setup = new URLSearchParams(window.location.hash.slice(1));
+  if (setup.has('device') || setup.has('deviceKey')) {
+    $('#phone-device').value = setup.get('device') || '';
+    $('#phone-token').value = setup.get('deviceKey') || '';
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    status.textContent = 'Enhedsoplysninger udfyldt. Godkend deling og tryk Start GPS-deling.';
+  }
   let watch = null, controller = null, generation = 0;
   function stop() {
     generation++;
