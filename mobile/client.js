@@ -10,6 +10,21 @@
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     status.textContent = 'Enhedsoplysninger udfyldt. Godkend deling og tryk Start GPS-deling.';
   }
+  // UX guard only, not device authentication. A phone number cannot switch
+  // the browser's location source to another device.
+  const phoneBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+    (/Macintosh/i.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1);
+  if (!phoneBrowser) {
+    $('#share').hidden = true;
+    $('#start').disabled = true;
+    $('#stop').hidden = true;
+    $('#sharing-description').hidden = true;
+    $('#sharing-help').hidden = true;
+    $('#share-title').textContent = 'Computeren er kun kortvisning';
+    $('#admin-panel').open = true;
+    status.textContent = 'Computerens lokation bruges ikke. Åbn denne HTTPS-side på selve din iPhone i Safari og start GPS-deling dér. Log ind som administrator nedenfor for at se telefonerne.';
+    return; // Never call navigator.geolocation from a desktop browser.
+  }
   let watch = null, controller = null, generation = 0;
   function stop() {
     generation++;

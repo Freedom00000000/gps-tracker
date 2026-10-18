@@ -1,5 +1,11 @@
 # GPS integration: current runnable version
 
+Desktop browsers now open in viewer-only mode and never request the computer's
+geolocation. GPS sharing is offered only in Android/iOS browsers, with explicit
+consent. Browser detection is a UX guard, not proof of device ownership or a
+security boundary; device tokens still authenticate submissions. Entering a
+phone number cannot remotely access that phone's location.
+
 Browser location estimates with unknown accuracy or uncertainty greater than
 1 km are now rejected. The phone waits for a better estimate, and a rejected
 reading never replaces an accepted reading. Older coarse readings show an orange

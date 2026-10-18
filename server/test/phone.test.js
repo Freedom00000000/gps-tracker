@@ -15,7 +15,7 @@ test('sharing requires consent and sends accepted GPS readings to the same-page 
   const window = { isSecureContext: true, location: { hash: '#device=%2B45%2022%2032%2035%2086&deviceKey=%20device-key%20', pathname: '/', search: '' }, history: { replaceState() { cleaned = true; } }, addEventListener() {}, dispatchEvent(event) { events.push(event); } };
   vm.runInNewContext(source, {
     document: { querySelector: selector => elements[selector.slice(1)] }, window,
-    navigator: { geolocation: { watchPosition(callback) { success = callback; return 17; }, clearWatch(id) { cleared.push(id); } } },
+    navigator: { userAgent: 'Mozilla/5.0 (iPhone) Mobile Safari', geolocation: { watchPosition(callback) { success = callback; return 17; }, clearWatch(id) { cleared.push(id); } } },
     AbortController, Date, URLSearchParams, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     fetch: async (url, options) => {
       requests.push({ url, ...options });
@@ -44,4 +44,21 @@ test('sharing requires consent and sends accepted GPS readings to the same-page 
   assert.deepEqual(cleared, [17]);
   await success({ coords: { latitude: 1, longitude: 1 } });
   assert.equal(requests.length, 2); // Stale callbacks after Stop never transmit.
+});
+
+test('desktop is a viewer and cannot start or request local geolocation', () => {
+  const elements = Object.fromEntries(['share-status', 'share', 'start', 'stop', 'share-title', 'admin-panel', 'sharing-description', 'sharing-help'].map(id => [id, {}]));
+  let requested = false;
+  vm.runInNewContext(source, {
+    document: { querySelector: s => elements[s.slice(1)] },
+    window: { location: { hash: '' } }, URLSearchParams,
+    navigator: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', maxTouchPoints: 0,
+      geolocation: { watchPosition() { requested = true; } } },
+  });
+  assert.equal(requested, false);
+  assert.equal(elements.share.hidden, true);
+  assert.equal(elements.start.disabled, true);
+  assert.equal(elements.share.onsubmit, undefined);
+  assert.equal(elements['admin-panel'].open, true);
+  assert.match(elements['share-status'].textContent, /Computerens lokation bruges ikke/);
 });
