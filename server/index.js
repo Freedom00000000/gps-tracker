@@ -7,6 +7,11 @@ const { Server } = require('socket.io');
 function equal(a, b) {
   return typeof a === 'string' && typeof b === 'string' && crypto.timingSafeEqual(crypto.createHash('sha256').update(a).digest(), crypto.createHash('sha256').update(b).digest());
 }
+function normalizeDevice(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return /^\+?[\d ()-]+$/.test(trimmed) ? trimmed.replace(/[ ()-]/g, '') : trimmed;
+}
 function createTracker({ adminToken, devices = {} } = {}) {
   if (typeof adminToken !== 'string' || adminToken.length < 32) throw Error('GPS_ADMIN_TOKEN must have at least 32 characters');
   if (!devices || Array.isArray(devices) || typeof devices !== 'object') throw Error('GPS_DEVICE_TOKENS must be an object');
@@ -23,9 +28,15 @@ function createTracker({ adminToken, devices = {} } = {}) {
   app.get('/dashboard-map.js',(_req,res)=>res.sendFile(path.resolve(__dirname,'../dashboard/map.js')));
   app.get('/health',(_req,res)=>res.json({status:'ok'}));
   app.get('/locations',admin,(_req,res)=>res.json({devices:[...locations.values()]}));
-  app.post('/gps',(req,res)=>{
+  const deviceAuth = (req,res,next) => {
+    req.body = req.body || {};
+    req.body.device_name = normalizeDevice(req.body.device_name);
+    if (!Object.hasOwn(devices,req.body.device_name)||!equal(bearer(req),devices[req.body.device_name])) return res.status(401).json({error:'Device login required'});
+    next();
+  };
+  app.post('/device-auth',deviceAuth,(_req,res)=>res.json({ok:true}));
+  app.post('/gps',deviceAuth,(req,res)=>{
     const {device_name,latitude,longitude,accuracy=null,altitude=null,speed=null}=req.body||{};
-    if (!Object.hasOwn(devices,device_name)||!equal(bearer(req),devices[device_name])) return res.status(401).json({error:'Device login required'});
     if (!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180||[accuracy,altitude,speed].some(x=>x!==null&&!Number.isFinite(x))||(accuracy!==null&&accuracy<0)||(speed!==null&&speed<0)) return res.status(400).json({error:'Invalid coordinates or telemetry'});
     const location={device_name,latitude,longitude,accuracy,altitude,speed,timestamp:new Date().toISOString()};
     locations.set(device_name,location);io.emit('location_update',location);res.json({ok:true,location});
