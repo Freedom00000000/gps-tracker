@@ -19,6 +19,8 @@ function createTracker({ adminToken, devices = {} } = {}) {
   const admin = (req,res,next) => equal(bearer(req),adminToken) ? next() : res.status(401).json({error:'Administrator login required'});
   app.get('/',(_req,res)=>res.sendFile(path.resolve(__dirname,'../dashboard/index.html')));
   app.get('/phone',(_req,res)=>res.sendFile(path.resolve(__dirname,'../mobile/index.html')));
+  app.use('/leaflet', express.static(path.resolve(__dirname, 'node_modules/leaflet/dist')));
+  app.get('/dashboard-map.js',(_req,res)=>res.sendFile(path.resolve(__dirname,'../dashboard/map.js')));
   app.get('/health',(_req,res)=>res.json({status:'ok'}));
   app.get('/locations',admin,(_req,res)=>res.json({devices:[...locations.values()]}));
   app.post('/gps',(req,res)=>{

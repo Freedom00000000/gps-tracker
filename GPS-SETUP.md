@@ -24,6 +24,11 @@ supplied by your launcher: copying an .env file alone does not load it.
 
 Open `http://127.0.0.1:3001` and enter the administrator token. The list is empty
 until an enrolled device sends a genuine GPS reading. The phone page is `/phone`.
+The dashboard includes an interactive Leaflet map with an OpenStreetMap
+background, one marker per device and a reported-accuracy circle. Select a marker
+or use "Vis på kort" in the table. "Vis alle enheder" fits the map to all readings.
+Map tiles require Internet access and are requested from OpenStreetMap; Leaflet
+code is served locally. No fabricated phone position appears when there is no GPS.
 Enter that device's code and token, check the sharing consent box, press Start,
 and grant the operating system's location permission. Stop ends new updates.
 No phone number, identity lookup, Google/Apple credentials or health data is used.
