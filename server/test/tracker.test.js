@@ -23,10 +23,14 @@ test('device isolation, private reads, validation and location deletion', async 
     assert.equal((await call('/gps', adminToken, 'POST', point)).status, 401);
     assert.equal((await call('/gps', phone1, 'POST', { ...point, latitude: 91 })).status, 400);
     assert.equal((await call('/gps', phone1, 'POST', { ...point, latitude: '55' })).status, 400);
+    assert.equal((await call('/gps', phone1, 'POST', { ...point, accuracy: 100000 })).status, 422);
+    assert.equal((await call('/gps', phone1, 'POST', { ...point, accuracy: null })).status, 422);
     assert.equal((await call('/gps', phone1, 'POST', point)).status, 200);
     const saved = await (await call('/locations', adminToken)).json();
     assert.equal(saved.devices.length, 1);
     assert.equal(saved.devices[0].latitude, 0);
+    assert.equal((await call('/gps', phone1, 'POST', { ...point, latitude: 56, accuracy: 100000 })).status, 422);
+    assert.equal((await (await call('/locations', adminToken)).json()).devices[0].latitude, 0);
     assert.equal(JSON.stringify(saved).includes(phone1), false);
     assert.equal((await call('/locations/phone1', phone1, 'DELETE')).status, 401);
     assert.equal((await call('/locations/phone1', adminToken, 'DELETE')).status, 200);

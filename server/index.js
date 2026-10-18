@@ -39,6 +39,7 @@ function createTracker({ adminToken, devices = {} } = {}) {
   app.post('/gps',deviceAuth,(req,res)=>{
     const {device_name,latitude,longitude,accuracy=null,altitude=null,speed=null}=req.body||{};
     if (!Number.isFinite(latitude)||Math.abs(latitude)>90||!Number.isFinite(longitude)||Math.abs(longitude)>180||[accuracy,altitude,speed].some(x=>x!==null&&!Number.isFinite(x))||(accuracy!==null&&accuracy<0)||(speed!==null&&speed<0)) return res.status(400).json({error:'Invalid coordinates or telemetry'});
+    if (accuracy === null || accuracy > 1000) return res.status(422).json({error:'Position is too imprecise. Enable precise location on the phone.', maxAccuracyMeters:1000});
     const location={device_name,latitude,longitude,accuracy,altitude,speed,timestamp:new Date().toISOString()};
     locations.set(device_name,location);io.emit('location_update',location);res.json({ok:true,location});
   });

@@ -49,6 +49,12 @@
     let lastSent = 0, sending = false;
     try {
       watch = navigator.geolocation.watchPosition(async position => {
+        if (current !== generation) return;
+        const accuracy = position.coords.accuracy;
+        if (!Number.isFinite(accuracy) || accuracy > 1000) {
+          status.textContent = 'Afventer præcis position. Browseren angiver ' + (Number.isFinite(accuracy) ? Math.round(accuracy / 1000) + ' km usikkerhed' : 'ukendt nøjagtighed') + '. Denne måling sendes ikke. Åbn siden i Safari på din iPhone, aktivér Præcis lokalitet og prøv gerne ved et vindue eller udendørs.';
+          return;
+        }
         if (current !== generation || sending || Date.now() - lastSent < 5000) return;
         lastSent = Date.now();
         sending = true;
@@ -61,6 +67,7 @@
           });
           if (current !== generation) return;
           if (response.status === 401) { stop(); status.textContent = 'Enhedsadgang afvist. Deling stoppet.'; return; }
+          if (response.status === 422) { status.textContent = 'Serveren afviste en upræcis måling. Afventer præcis GPS fra telefonen.'; return; }
           if (!response.ok) throw Error('Server error');
           const result = await response.json();
           if (current !== generation) return;

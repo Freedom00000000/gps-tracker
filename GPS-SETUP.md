@@ -1,5 +1,11 @@
 # GPS integration: current runnable version
 
+Browser location estimates with unknown accuracy or uncertainty greater than
+1 km are now rejected. The phone waits for a better estimate, and a rejected
+reading never replaces an accepted reading. Older coarse readings show an orange
+uncertainty area without a precise phone pin. High-accuracy mode cannot force a
+GPS fix; on iPhone, use Safari and enable Precise Location.
+
 The supported standalone path is `server/index.js`, `dashboard/index.html` and
 `mobile/client.js`. The older Base44 React files are a separate prototype: this
 repository has no deployed Base44 app ID or `gpsReceiver` implementation.

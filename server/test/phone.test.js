@@ -29,6 +29,9 @@ test('sharing requires consent and sends accepted GPS readings to the same-page 
   assert.equal(requests[0].url, '/device-auth');
   assert.equal(requests[0].headers.Authorization, 'Bearer device-key');
   assert.equal(requests.length, 1); // No GPS sent just by logging in.
+  await success({ coords: { latitude: 56, longitude: 10, accuracy: 100000 } });
+  assert.equal(requests.length, 1); // Coarse browser geolocation never reaches the server or map.
+  assert.match(elements['share-status'].textContent, /Denne måling sendes ikke/);
   await success({ coords: { latitude: 0, longitude: 0, accuracy: 5, altitude: null, speed: null } });
   assert.equal(requests[1].url, '/gps');
   assert.equal(events[0].type, 'gps-position');
