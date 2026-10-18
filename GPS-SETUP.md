@@ -1,7 +1,7 @@
 # GPS integration: current runnable version
 
 The supported standalone path is `server/index.js`, `dashboard/index.html` and
-`mobile/index.html`. The older Base44 React files are a separate prototype: this
+`mobile/client.js`. The older Base44 React files are a separate prototype: this
 repository has no deployed Base44 app ID or `gpsReceiver` implementation.
 The available Base44 app TelenorTrack has different entities and was not modified.
 
@@ -24,6 +24,11 @@ supplied by your launcher: copying an .env file alone does not load it.
 
 Open `http://127.0.0.1:3001` and enter the administrator token. The list is empty
 until an enrolled device sends a genuine GPS reading. The phone page is `/phone`.
+GPS sharing and the map now share the same page at `/`; `/phone` redirects there
+for compatibility. A device token can send and view that phone's own new reading
+without administrator access. Expand the Administrator section to view all devices
+on the same map with an administrator token. Stopping sharing and disconnecting
+the administrator view are separate actions.
 The dashboard includes an interactive Leaflet map with an OpenStreetMap
 background, one marker per device and a reported-accuracy circle. Select a marker
 or use "Vis på kort" in the table. "Vis alle enheder" fits the map to all readings.

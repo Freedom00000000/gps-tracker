@@ -1,17 +1,25 @@
 <!doctype html><html lang="da"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>GPS Tracker</title>
 <style>body{font:16px system-ui;background:#101923;color:#edf4fb;max-width:1000px;margin:40px auto;padding:20px}input,button{font:inherit;padding:12px;margin:6px}input{max-width:90%}td,th{padding:15px;border-bottom:1px solid #567;text-align:left}a{color:#9edbff}table{width:100%}.scroll{overflow:auto}</style>
 <link rel="stylesheet" href="/leaflet/leaflet.css"><style>#map{height:430px;border-radius:12px;border:1px solid #567;margin:16px 0;background:#203040}#map-status{color:#b9cfe2}.leaflet-container{color:#192532}.leaflet-popup-content{white-space:pre-line}@media(max-width:600px){#map{height:340px}}</style>
-<h1>GPS Tracker · Mine enheder</h1><p>Positioner fra telefoner, hvor lokationsdeling er startet og godkendt. Ingen opslag via telefonnummer.</p>
+<h1>GPS Tracker · Kort og deling</h1><p>Start GPS-deling på denne telefon og se positionen på kortet nedenfor. Ingen opslag via telefonnummer.</p>
+<section aria-labelledby="share-title"><h2 id="share-title">Del denne telefons position</h2>
+<p>Din position og nøjagtighed sendes til GPS Tracker-serverens administrator, når du starter deling og giver lokationstilladelse.</p>
+<form id="share"><label>Enhedskode eller tilmeldt telefonnummer <input id="phone-device" required maxlength="80" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="+4522323586 eller phone-1"></label><label>Enhedsnøgle <input id="phone-token" type="password" required autocomplete="off" autocapitalize="none" spellcheck="false"></label><label style="display:block"><input id="share-consent" type="checkbox" required> Jeg vil dele denne enheds position med serverens administrator.</label><button id="start">Start GPS-deling</button></form>
+<button id="stop" disabled>Stop GPS-deling</button><p id="share-status" role="status" aria-live="polite">GPS-deling er stoppet.</p>
+<p>Din egen modtagne position vises automatisk på kortet. Hold siden åben; browseren kan sætte GPS på pause i baggrunden. Stop standser nye opdateringer; den seneste position forbliver på serveren indtil sletning eller genstart.</p></section>
+<details id="admin-panel"><summary>Administrator · se alle telefoner på samme kort</summary>
 <form id="login"><label>Administratornøgle <input id="token" type="password" autocomplete="off" required></label><button>Forbind</button></form>
 <button id="logout" hidden>Afbryd</button><p id="status" role="status">Ikke forbundet.</p>
+</details>
 <h2>Enheder på kortet</h2><button id="fit-map" disabled>Vis alle enheder</button><p id="map-status" role="status">Venter på positioner. Der vises ingen telefonplacering endnu.</p>
 <div id="map" role="region" aria-label="Kort med modtagne GPS-positioner"></div><p>Kortbaggrund: OpenStreetMap. Cirkler viser rapporteret nøjagtighed. Markørerne viser seneste modtagne position, ikke nødvendigvis den aktuelle.</p>
 <div class="scroll"><table><thead><tr><th>Enhed</th><th>Position</th><th>Nøjagtighed</th><th>Senest modtaget</th><th>Kort</th></tr></thead><tbody id="devices"></tbody></table></div>
-<p><a href="/phone">GPS på denne enhed</a>. På andre telefoner bruges samme side på din HTTPS-server.</p><p>Kun seneste position opbevares i serverens hukommelse. En gammel position er ikke en liveplacering.</p>
+<p>GPS-deling og kort er samlet på denne side. Åbn den samme HTTPS-adresse på hver telefon. Kun seneste position opbevares i serverens hukommelse. En gammel position er ikke en liveplacering.</p>
 <script src="/leaflet/leaflet.js"></script><script src="/dashboard-map.js"></script><script src="/socket.io/socket.io.js"></script><script>
-let socket=null,token='',timer=null;const status=document.querySelector('#status');
+let socket=null,token='',timer=null,ownLocation=null;const status=document.querySelector('#status');
 function render(items){window.gpsMap.update(items);const rows=document.querySelector('#devices');rows.replaceChildren();for(const p of items){const row=document.createElement('tr');for(const value of [p.device_name,p.latitude.toFixed(6)+', '+p.longitude.toFixed(6),p.accuracy===null?'Ukendt':p.accuracy+' m',new Date(p.timestamp).toLocaleString()]){const td=document.createElement('td');td.textContent=value;row.append(td);}const td=document.createElement('td'),button=document.createElement('button');button.textContent='Vis på kort';button.disabled=!window.gpsMap.available;button.onclick=()=>window.gpsMap.focus(p.device_name);td.append(button);row.append(td);rows.append(row);}}
 async function refresh(){const key=token;try{const r=await fetch('/locations',{headers:{Authorization:'Bearer '+key}});if(key!==token)return;if(!r.ok)throw Error('Adgang afvist');const data=await r.json();if(key===token){render(data.devices);status.textContent=data.devices.length?'Forbundet · seneste positioner vist.':'Forbundet · venter på GPS fra telefonerne.';}}catch(e){if(key===token)status.textContent=e.message;}}
-function disconnect(){token='';if(socket)socket.disconnect();clearInterval(timer);render([]);document.querySelector('#logout').hidden=true;status.textContent='Afbrudt.';}
+function disconnect(){token='';if(socket)socket.disconnect();clearInterval(timer);render(ownLocation?[ownLocation]:[]);document.querySelector('#logout').hidden=true;status.textContent='Administratorforbindelse afbrudt. Telefonens GPS-deling styres ovenfor.';}
+window.addEventListener('gps-position',e=>{ownLocation=e.detail;if(token)refresh();else render([ownLocation]);});
 document.querySelector('#login').onsubmit=e=>{e.preventDefault();disconnect();token=document.querySelector('#token').value;document.querySelector('#token').value='';document.querySelector('#logout').hidden=false;socket=io({auth:{token}});socket.on('snapshot',render);socket.on('location_update',refresh);socket.on('connect_error',()=>status.textContent='Liveforbindelse afvist. Kontrollér administratornøglen.');refresh();timer=setInterval(refresh,10000);};document.querySelector('#logout').onclick=disconnect;
-</script></html>
+</script><script src="/phone-client.js"></script></html>
