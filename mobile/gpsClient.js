@@ -5,8 +5,8 @@
  * Built by Mia
  */
 
-const SERVER_URL = process.env.GPS_SERVER_URL || 'http://localhost:3001';
-const DEVICE_NAME = process.env.DEVICE_NAME || 'mobile-device-1';
+const SERVER_URL = typeof location !== 'undefined' ? location.origin : '';
+const DEVICE_NAME = 'mobile-device-1';
 const PING_INTERVAL_MS = 5000; // 5 seconds
 
 let watchId = null;
@@ -16,7 +16,9 @@ let lastPosition = null;
 /**
  * Start broadcasting GPS location to server
  */
-export function startTracking(deviceName = DEVICE_NAME, serverUrl = SERVER_URL) {
+export function startTracking(deviceName = DEVICE_NAME, serverUrl = SERVER_URL, deviceToken = '') {
+  if (!deviceToken) throw new Error('A device token and explicit location permission are required');
+  stopTracking();
   if (!navigator.geolocation) {
     console.error('[GPS Client] Geolocation not supported');
     return;
@@ -53,7 +55,7 @@ export function startTracking(deviceName = DEVICE_NAME, serverUrl = SERVER_URL) 
     try {
       const res = await fetch(`${serverUrl}/gps`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceToken}` },
         body: JSON.stringify(lastPosition),
       });
 

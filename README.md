@@ -1,5 +1,11 @@
 # ✴ GPS Tracker
 
+## Runnable GPS integration
+
+See [GPS-SETUP.md](GPS-SETUP.md) for the authenticated standalone server,
+live dashboard and opt-in phone client. The older Base44 architecture described
+below is a separate prototype, not a deployed backend in this repository.
+
 Real-time GPS tracking dashboard built on the JARVIS/Mia stack.
 
 ## Stack
